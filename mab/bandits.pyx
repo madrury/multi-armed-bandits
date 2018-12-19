@@ -1,7 +1,7 @@
 import cython
 import numpy as np
 cimport numpy as np
-
+from libc.math cimport sqrt, log
 from numpy.math cimport INFINITY
 
 ctypedef double (*update_rule_t)(long, double, double, double)
@@ -36,8 +36,8 @@ def non_stationary_bandit_maker(drift=0.01):
 def run_bandits(double[:, :] bandits, 
                 double alpha=1.0,
                 double epsilon=0.1, 
-                double update_type=UPDATE_RULE_MEAN,
-                double bandit_choice_type=BANDIT_CHOICE_RULE_GREEDY):
+                long update_type=UPDATE_RULE_MEAN,
+                long bandit_choice_type=BANDIT_CHOICE_RULE_GREEDY):
     cdef long n_bandits, n_times, i, greedy, choice
     cdef double reward
     cdef long[:] take_greedy, random_choices, n_times_chosen
@@ -56,6 +56,8 @@ def run_bandits(double[:, :] bandits,
 
     if update_type == BANDIT_CHOICE_RULE_GREEDY:
         bandit_choice_rule = greedy_bandit_choice
+    elif update_type == BANDIT_CHOICE_RULE_UCB:
+        bandit_choice_rule = ucb_bandit_choice
     
     action_estimates = np.zeros(n_bandits, dtype=float)
     n_times_chosen = np.zeros(n_bandits, dtype=int)
@@ -89,6 +91,24 @@ cdef long greedy_bandit_choice(long n_bandits,
     for i in range(n_bandits):
         if action_estimates[i] > best_action_estimate:
             best_action_estimate = action_estimates[i]
+            choice = i
+    return choice
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef long ucb_bandit_choice(long n_bandits,
+                            double[:] action_estimates,
+                            long[:] n_times_chosen,
+                            long step_number):
+    cdef long choice, i
+    cdef double best_action_estimate, current_action_estimate
+    best_action_estimate = -1 * INFINITY
+    choice = 0
+    for i in range(n_bandits):
+        current_action_estimate = action_estimates[i]
+        current_action_estimate += sqrt(log(step_number) / n_times_chosen[i])
+        if current_action_estimate > best_action_estimate:
+            best_action_estimate = current_action_estimate
             choice = i
     return choice
 
