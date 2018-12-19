@@ -54,9 +54,9 @@ def run_bandits(double[:, :] bandits,
     elif update_type == UPDATE_RULE_CONSTANT:
         update_rule = constant_step_update
 
-    if update_type == BANDIT_CHOICE_RULE_GREEDY:
+    if bandit_choice_type == BANDIT_CHOICE_RULE_GREEDY:
         bandit_choice_rule = greedy_bandit_choice
-    elif update_type == BANDIT_CHOICE_RULE_UCB:
+    elif bandit_choice_type == BANDIT_CHOICE_RULE_UCB:
         bandit_choice_rule = ucb_bandit_choice
     
     action_estimates = np.zeros(n_bandits, dtype=float)
@@ -80,6 +80,7 @@ def run_bandits(double[:, :] bandits,
         reward_at_stage[i] = reward
         choice_at_stage[i] = choice
     return reward_at_stage, choice_at_stage
+
 
 @cython.boundscheck(False)
 cdef long greedy_bandit_choice(long n_bandits,
@@ -108,7 +109,7 @@ cdef long ucb_bandit_choice(long n_bandits,
     choice = 0
     for i in range(n_bandits):
         current_action_estimate = action_estimates[i]
-        current_action_estimate += sqrt(log(step_number) / n_times_chosen[i])
+        current_action_estimate += 5 * sqrt(log(step_number) / n_times_chosen[i])
         if current_action_estimate > best_action_estimate:
             best_action_estimate = current_action_estimate
             choice = i
@@ -119,7 +120,7 @@ cdef double sample_average_update(long n,
                                   double alpha,
                                   double reward,
                                   double action_estimate):
-    return (1/n) * alpha * (reward - action_estimate)
+    return (1/n) * (reward - action_estimate)
 
 cdef double constant_step_update(long n,
                                  double alpha,
