@@ -17,7 +17,7 @@ BANDIT_CHOICE_RULE_UCB = 1
 def make_stationary_bandits(n_bandits, n_times):
     bandit_means = np.random.normal(size=n_bandits).reshape((n_bandits, 1))
     bandit_draws = np.random.normal(size=(n_bandits, n_times))
-    return bandit_means + bandit_draws
+    return bandit_means + bandit_draws, bandit_means
 
 def non_stationary_bandit_maker(drift=0.01):
     def make_nonstationary_bandits(n_bandits, n_times):
@@ -40,7 +40,7 @@ def run_bandits(double[:, :] bandits,
                 long bandit_choice_type=BANDIT_CHOICE_RULE_GREEDY):
     cdef long n_bandits, n_times, i, greedy, choice
     cdef double reward
-    cdef long[:] take_greedy, random_choices, n_times_chosen
+    cdef long[:] take_greedy, random_choices, n_times_chosen, choice_at_stage
     cdef double[:] action_estimates, reward_at_stage
     cdef update_rule_t update_rule
     cdef bandit_choice_rule_t bandit_choice_rule
@@ -61,6 +61,7 @@ def run_bandits(double[:, :] bandits,
     
     action_estimates = np.zeros(n_bandits, dtype=float)
     n_times_chosen = np.zeros(n_bandits, dtype=int)
+    choice_at_stage = np.zeros(n_times, dtype=int)
     reward_at_stage = np.zeros(n_times, dtype=float)
     
     take_greedy = 1 - np.random.binomial(1, p=epsilon, size=n_times)
@@ -77,7 +78,8 @@ def run_bandits(double[:, :] bandits,
         action_estimates[choice] += update_rule(
             n_times_chosen[choice], alpha, reward, action_estimates[choice])
         reward_at_stage[i] = reward
-    return action_estimates, reward_at_stage
+        choice_at_stage[i] = choice
+    return reward_at_stage, choice_at_stage
 
 @cython.boundscheck(False)
 cdef long greedy_bandit_choice(long n_bandits,
