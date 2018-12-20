@@ -25,8 +25,10 @@ def non_stationary_bandit_maker(drift=0.01):
         bandit_drifts = np.cumsum(
             np.random.normal(scale=drift, size=(n_bandits, n_times)),
             axis=1)
-        bandit_draws = np.random.normal(size=(n_bandits, n_times)) + bandit_drifts
-        return bandit_means + bandit_draws
+        bandit_non_stationary_means = (
+            np.random.normal(size=(n_bandits, n_times)) + bandit_drifts)
+        return (bandit_means + bandit_non_stationary_means,
+                bandit_non_stationary_means)
     return make_nonstationary_bandits
 
 
