@@ -3,6 +3,7 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport sqrt, log
 from numpy.math cimport INFINITY
+from cpython.ref cimport PyObject
 
 ctypedef double (*update_rule_t)(long, double, double, double)
 ctypedef long (*bandit_choice_rule_t)(long, double[:], long[:], long)
@@ -36,6 +37,7 @@ def non_stationary_bandit_maker(drift=0.01):
 @cython.wraparound(False) 
 @cython.cdivision(True)
 def run_bandits(double[:, :] bandits, 
+                double initial_action_estimate=0.0,
                 double alpha=1.0,
                 double epsilon=0.1, 
                 long update_type=UPDATE_RULE_MEAN,
@@ -61,7 +63,8 @@ def run_bandits(double[:, :] bandits,
     elif bandit_choice_type == BANDIT_CHOICE_RULE_UCB:
         bandit_choice_rule = ucb_bandit_choice
     
-    action_estimates = np.zeros(n_bandits, dtype=float)
+    action_estimates = np.full(
+        n_bandits, initial_action_estimate, dtype=float)
     n_times_chosen = np.zeros(n_bandits, dtype=int)
     choice_at_stage = np.zeros(n_times, dtype=int)
     reward_at_stage = np.zeros(n_times, dtype=float)
@@ -111,7 +114,7 @@ cdef long ucb_bandit_choice(long n_bandits,
     choice = 0
     for i in range(n_bandits):
         current_action_estimate = action_estimates[i]
-        current_action_estimate += 5 * sqrt(log(step_number) / n_times_chosen[i])
+        current_action_estimate += 2.0 * sqrt(log(step_number) / n_times_chosen[i])
         if current_action_estimate > best_action_estimate:
             best_action_estimate = current_action_estimate
             choice = i
@@ -122,7 +125,7 @@ cdef double sample_average_update(long n,
                                   double alpha,
                                   double reward,
                                   double action_estimate):
-    return (1/n) * (reward - action_estimate)
+    return (1.0 / n) * (reward - action_estimate)
 
 cdef double constant_step_update(long n,
                                  double alpha,
