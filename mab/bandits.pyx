@@ -8,7 +8,6 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport sqrt, log
 from numpy.math cimport INFINITY
-from cpython.ref cimport PyObject
 
 # Function types for different reward updates and bandit choice strategies.
 ctypedef double (*update_rule_t)(long, double, double, double)
@@ -169,6 +168,40 @@ def run_bandits(double[:, :] bandits,
     return reward_at_stage, choice_at_stage
 
 
+def run_gradient_bandit(double[:, :] bandits, 
+                        double initial_action_estimate=0.0,
+                        double alpha=1.0):
+    n_bandits = bandits.shape[0]
+    n_times = bandits.shape[1]
+
+    action_estimates = np.full(
+        n_bandits, initial_action_estimate, dtype=float)
+    n_times_chosen = np.zeros(n_bandits, dtype=int)
+    choice_at_stage = np.zeros(n_times, dtype=int)
+    reward_at_stage = np.zeros(n_times, dtype=float)
+    
+    preferences = np.zeros(n_bandits)
+    p = np.full(n_bandits, 1 / n_bandits)
+
+    for i in range(n_times):
+        choice = np.choice(n_bandits, p=p)
+        n_times_chosen[choice] += 1
+        reward = bandits[choice, n_times_chosen[choice] - 1]
+
+        action_estimates[choice] += sample_average_update(
+            n_times_chosen[choice], alpha, reward, action_estimates[choice])
+
+        preferences += alpha * (reward - action_estimates[choice]) * (1 - p)
+        preferences[choice] -= alpha * (reward - action_estimates[choice])
+
+        p = np.exp(preferences)
+        p /= np.sum(p)
+
+        choice_at_stage[i] = choice
+        reward_at_stage[i] = reward
+    return reward_at_stage, choice_at_stage
+
+
 # Bandit choice rules.
 @cython.boundscheck(False)
 cdef long greedy_bandit_choice(long n_bandits,
@@ -294,3 +327,5 @@ cdef double constant_step_update(long n,
       action.
     """
     return alpha * (reward - action_estimate)
+
+
