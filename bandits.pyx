@@ -6,7 +6,7 @@ Following chapter 2 of Reinforcement Learning, by Sutton and Barto.
 import cython
 import numpy as np
 cimport numpy as np
-from libc.math cimport sqrt, log
+from libc.math cimport sqrt, log, exp
 from numpy.math cimport INFINITY
 
 # Function types for different reward updates and bandit choice strategies.
@@ -150,6 +150,7 @@ def run_bandits(double[:, :] bandits,
     choice_at_stage = np.zeros(n_times, dtype=int)
     reward_at_stage = np.zeros(n_times, dtype=float)
     
+    # Lookup tables for random choices made during the learning algorithm.
     take_greedy = 1 - np.random.binomial(1, p=epsilon, size=n_times)
     random_choices = np.random.choice(n_bandits, size=n_times)
     for i in range(n_times):
@@ -168,6 +169,9 @@ def run_bandits(double[:, :] bandits,
     return reward_at_stage, choice_at_stage
 
 
+@cython.boundscheck(False)
+@cython.wraparound(False) 
+@cython.cdivision(True)
 def run_gradient_bandits(double[:, :] bandits, 
                          double initial_action_estimate=0.0,
                          double alpha=1.0,
@@ -204,15 +208,15 @@ def run_gradient_bandits(double[:, :] bandits,
                 preferences[j] -= alpha * (reward - average_reward) * p[j]
         preferences[choice] += alpha * (reward - average_reward) * (1 - p[choice])
         # Convert preferences to probabilities.
-        p = np.exp(preferences)
-        p /= np.sum(p)
+        p = convert_to_probabilities(n_bandits, preferences, p)
 
         choice_at_stage[i] = choice
         reward_at_stage[i] = reward
     return reward_at_stage, choice_at_stage
 
 
-cdef random_choice(long n_choices, double[:] p, double runif):
+@cython.boundscheck(False)
+cdef long random_choice(long n_choices, double[:] p, double runif):
     cdef int i
     cdef double acc = 0
     for i in range(n_choices):
@@ -221,6 +225,17 @@ cdef random_choice(long n_choices, double[:] p, double runif):
             return i
     return n_choices - 1
 
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef double[:] convert_to_probabilities(long n_bandits, double[:] preferences, double[:] p):
+    cdef long i
+    cdef double s = 0.0
+    for i in range(n_bandits):
+        p[i] = exp(preferences[i])
+        s += p[i]
+    for i in range(n_bandits):
+        p[i] /= s
+    return p
 
 
 # Bandit choice rules.
