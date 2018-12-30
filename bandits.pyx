@@ -175,7 +175,7 @@ def run_gradient_bandits(double[:, :] bandits,
     cdef long n_bandits, n_times, i, j, choice
     cdef double reward, average_reward
     cdef long[:] n_times_chosen, choice_at_stage
-    cdef double[:] reward_at_stage, preferences, p
+    cdef double[:] reward_at_stage, preferences, p, random_unif
 
     n_bandits = bandits.shape[0]
     n_times = bandits.shape[1]
@@ -187,9 +187,12 @@ def run_gradient_bandits(double[:, :] bandits,
     
     preferences = np.zeros(n_bandits, dtype=float)
     p = np.full(n_bandits, 1.0 / n_bandits)
-
+    
+    # A lookup table of random numbers used for making random choices according
+    # to a discrete probability distribution.
+    random_unif = np.random.uniform(size=n_times)
     for i in range(n_times):
-        choice = np.random.choice(n_bandits, p=p)
+        choice = random_choice(n_bandits, p, random_unif[i])
 
         n_times_chosen[choice] += 1
         reward = bandits[choice, n_times_chosen[choice] - 1]
@@ -207,6 +210,17 @@ def run_gradient_bandits(double[:, :] bandits,
         choice_at_stage[i] = choice
         reward_at_stage[i] = reward
     return reward_at_stage, choice_at_stage
+
+
+cdef random_choice(long n_choices, double[:] p, double runif):
+    cdef int i
+    cdef double acc = 0
+    for i in range(n_choices):
+        acc += p[i]
+        if acc >= runif:
+            return i
+    return n_choices - 1
+
 
 
 # Bandit choice rules.
