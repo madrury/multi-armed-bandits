@@ -168,9 +168,10 @@ def run_bandits(double[:, :] bandits,
     return reward_at_stage, choice_at_stage
 
 
-def run_gradient_bandit(double[:, :] bandits, 
+def run_gradient_bandits(double[:, :] bandits, 
                         double initial_action_estimate=0.0,
-                        double alpha=1.0):
+                        double alpha=1.0,
+                        **kwargs):
     n_bandits = bandits.shape[0]
     n_times = bandits.shape[1]
 
@@ -184,7 +185,7 @@ def run_gradient_bandit(double[:, :] bandits,
     p = np.full(n_bandits, 1 / n_bandits)
 
     for i in range(n_times):
-        choice = np.choice(n_bandits, p=p)
+        choice = np.random.choice(n_bandits, p=p)
         n_times_chosen[choice] += 1
         reward = bandits[choice, n_times_chosen[choice] - 1]
 
