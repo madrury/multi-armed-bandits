@@ -21,9 +21,8 @@ setup(
     ext_modules=cythonize(
         Extension(
             "bandits",
-            sources=["bandits.pyx"], 
+            sources=["bandits.pyx"],
             annotate=True,
             include_dirs=[np.get_include()])),
-    #packages=['mab'],
     install_requires=['numpy', 'cython']
 )
