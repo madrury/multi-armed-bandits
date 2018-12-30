@@ -18,11 +18,12 @@ setup(
     url='https://github.com/madrury/multi-armed-bandits',
     author='Matthew Drury',
     author_email='matthew.drury.83@gmail.com',
-    ext_modules=cythonize(Extension(
-        "mab",
-        sources=["mab/bandits.pyx"], 
-        annotate=True,
-        include_dirs=[np.get_include()])),
-    packages=['mab'],
+    ext_modules=cythonize(
+        Extension(
+            "bandits",
+            sources=["bandits.pyx"], 
+            annotate=True,
+            include_dirs=[np.get_include()])),
+    #packages=['mab'],
     install_requires=['numpy', 'cython']
 )

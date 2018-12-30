@@ -123,6 +123,7 @@ def run_bandits(double[:, :] bandits,
     choice_at_stage: np.array of int, shape (n_times,)
       The bandit chosen at every stage of the learning algorithm.
     """
+    print(2)
     cdef long n_bandits, n_times, i, greedy, choice
     cdef double reward
     cdef long[:] take_greedy, random_choices, n_times_chosen, choice_at_stage
