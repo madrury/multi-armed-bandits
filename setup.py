@@ -5,6 +5,9 @@ from os import path
 import numpy as np
 from Cython.Build import cythonize
 
+import Cython.Compiler.Options
+Cython.Compiler.Options.annotate = True
+
 here = path.abspath(path.dirname(__file__))
 
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -22,7 +25,7 @@ setup(
         Extension(
             "bandits",
             sources=["bandits.pyx"],
-            annotate=True,
-            include_dirs=[np.get_include()])),
+            include_dirs=[np.get_include()]),
+        annotate=True),
     install_requires=['numpy', 'cython']
 )

@@ -169,32 +169,38 @@ def run_bandits(double[:, :] bandits,
 
 
 def run_gradient_bandits(double[:, :] bandits, 
-                        double initial_action_estimate=0.0,
-                        double alpha=1.0,
-                        **kwargs):
+                         double initial_action_estimate=0.0,
+                         double alpha=1.0,
+                         **kwargs):
+    cdef long n_bandits, n_times, i, j, choice
+    cdef double reward, average_reward
+    cdef long[:] n_times_chosen, choice_at_stage
+    cdef double[:] reward_at_stage, preferences, p
+
     n_bandits = bandits.shape[0]
     n_times = bandits.shape[1]
 
-    action_estimates = np.full(
-        n_bandits, initial_action_estimate, dtype=float)
     n_times_chosen = np.zeros(n_bandits, dtype=int)
     choice_at_stage = np.zeros(n_times, dtype=int)
     reward_at_stage = np.zeros(n_times, dtype=float)
+    average_reward = 0.0
     
-    preferences = np.zeros(n_bandits)
-    p = np.full(n_bandits, 1 / n_bandits)
+    preferences = np.zeros(n_bandits, dtype=float)
+    p = np.full(n_bandits, 1.0 / n_bandits)
 
     for i in range(n_times):
         choice = np.random.choice(n_bandits, p=p)
+
         n_times_chosen[choice] += 1
         reward = bandits[choice, n_times_chosen[choice] - 1]
-
-        action_estimates[choice] += sample_average_update(
-            n_times_chosen[choice], alpha, reward, action_estimates[choice])
-
-        preferences += alpha * (reward - action_estimates[choice]) * (1 - p)
-        preferences[choice] -= alpha * (reward - action_estimates[choice])
-
+        # Update average reward with sample mean update rule.
+        average_reward += (1.0 / (i + 1)) * (reward - average_reward)
+        # Gradient update for preferences.
+        for j in range(n_bandits):
+            if j != choice:
+                preferences[j] -= alpha * (reward - average_reward) * p[j]
+        preferences[choice] += alpha * (reward - average_reward) * (1 - p[choice])
+        # Convert preferences to probabilities.
         p = np.exp(preferences)
         p /= np.sum(p)
 
