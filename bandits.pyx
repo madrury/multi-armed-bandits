@@ -29,7 +29,10 @@ lookup to pull a bandit during learning, instead of generating a standard
 normal variate one at a time.  This allows us to use the efficient numpy array
 generation methods.
 """
-def make_stationary_bandits(n_bandits, n_times):
+def make_stationary_bandits(n_bandits, n_times, 
+                            bandit_grand_mean=0.0,
+                            bandit_mean_std=1.0,
+                            bandit_std=1.0):
     """Make a suite of stationary bandits.
 
     The means of these badits are drawn from a standard normal distribution,
@@ -49,8 +52,10 @@ def make_stationary_bandits(n_bandits, n_times):
     badtis: np.array of shape (n_bandits, n_pulls)
       The pulls from the suite of badits.
     """
-    bandit_means = np.random.normal(size=n_bandits).reshape((n_bandits, 1))
-    bandit_draws = np.random.normal(size=(n_bandits, n_times))
+    bandit_means = np.random.normal(
+        loc=bandit_grand_mean, scale=bandit_mean_std, size=n_bandits)
+    bandit_means = bandit_means.reshape((n_bandits, 1))
+    bandit_draws = np.random.normal(scale=bandit_std, size=(n_bandits, n_times))
     return bandit_means + bandit_draws, bandit_means
 
 def non_stationary_bandit_maker(drift=0.01):
