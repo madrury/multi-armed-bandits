@@ -95,7 +95,8 @@ def run_bandits(double[:, :] bandits,
                 double alpha=1.0,
                 double epsilon=0.1, 
                 long update_type=UPDATE_RULE_MEAN,
-                long bandit_choice_type=BANDIT_CHOICE_RULE_GREEDY):
+                long bandit_choice_type=BANDIT_CHOICE_RULE_GREEDY,
+                **kwargs):
     """
     Run an explore-exploit bandit learning algorithm on a suite of bandits.
 
@@ -180,6 +181,7 @@ def run_bandits(double[:, :] bandits,
 def run_gradient_bandits(double[:, :] bandits, 
                          double initial_action_estimate=0.0,
                          double alpha=1.0,
+                         double baseline_factor=1.0,
                          **kwargs):
     cdef long n_bandits, n_times, i, j, choice
     cdef double reward, average_reward
@@ -210,9 +212,10 @@ def run_gradient_bandits(double[:, :] bandits,
         # Gradient update for preferences.
         for j in range(n_bandits):
             if j != choice:
-                preferences[j] -= alpha * (reward - average_reward) * p[j]
-        preferences[choice] += alpha * (reward - average_reward) * (1 - p[choice])
-        # Convert preferences to probabilities.
+                preferences[j] -= (
+                    alpha * (reward - baseline_factor * average_reward) * p[j])
+        preferences[choice] += (
+            alpha * (reward - baseline_factor * average_reward) * (1 - p[choice]))
         p = convert_to_probabilities(n_bandits, preferences, p)
 
         choice_at_stage[i] = choice
