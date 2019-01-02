@@ -179,10 +179,32 @@ def run_bandits(double[:, :] bandits,
 @cython.wraparound(False) 
 @cython.cdivision(True)
 def run_gradient_bandits(double[:, :] bandits, 
-                         double initial_action_estimate=0.0,
                          double alpha=1.0,
                          double baseline_factor=1.0,
                          **kwargs):
+    """Run the gradient bandit learning algroithm on a suite of bandits.
+
+    Parameters
+    ----------
+    badits: np.array of shape (n_bandits, n_times)
+      The pulls of the suite of bandits.
+
+    alpha: float
+      Learning rate for the gradient update.
+
+    baseline_factor: float
+      Multiplicitive factor to apply to the baseline term in the gradient
+      update.  A value of zero turns off the baseline term.  This is used to
+      reproduce one of the pictures in barto and sutton.
+
+    Returns
+    -------
+    reward_at_stage: np.array of float, shape (n_times,)
+      The rewards recieved at every stage of the learning algorithm.
+
+    choice_at_stage: np.array of int, shape (n_times,)
+      The bandit chosen at every stage of the learning algorithm.
+    """
     cdef long n_bandits, n_times, i, j, choice
     cdef double reward, average_reward
     cdef long[:] n_times_chosen, choice_at_stage
@@ -204,7 +226,6 @@ def run_gradient_bandits(double[:, :] bandits,
     random_unif = np.random.uniform(size=n_times)
     for i in range(n_times):
         choice = random_choice(n_bandits, p, random_unif[i])
-
         n_times_chosen[choice] += 1
         reward = bandits[choice, n_times_chosen[choice] - 1]
         # Update average reward with sample mean update rule.
@@ -217,33 +238,10 @@ def run_gradient_bandits(double[:, :] bandits,
         preferences[choice] += (
             alpha * (reward - baseline_factor * average_reward) * (1 - p[choice]))
         p = convert_to_probabilities(n_bandits, preferences, p)
-
         choice_at_stage[i] = choice
         reward_at_stage[i] = reward
     return reward_at_stage, choice_at_stage
 
-
-@cython.boundscheck(False)
-cdef long random_choice(long n_choices, double[:] p, double runif):
-    cdef int i
-    cdef double acc = 0
-    for i in range(n_choices):
-        acc += p[i]
-        if acc >= runif:
-            return i
-    return n_choices - 1
-
-@cython.boundscheck(False)
-@cython.cdivision(True)
-cdef double[:] convert_to_probabilities(long n_bandits, double[:] preferences, double[:] p):
-    cdef long i
-    cdef double s = 0.0
-    for i in range(n_bandits):
-        p[i] = exp(preferences[i])
-        s += p[i]
-    for i in range(n_bandits):
-        p[i] /= s
-    return p
 
 
 # Bandit choice rules.
@@ -371,3 +369,66 @@ cdef double constant_step_update(long n,
       action.
     """
     return alpha * (reward - action_estimate)
+
+# Gradient Bandit helper functions.
+@cython.boundscheck(False)
+cdef long random_choice(long n_choices, double[:] p, double runif):
+    """Randomly choose from the set {0, 1, ..., n_choices - 1} according to a
+    specified probability distribution.
+
+    Parameters
+    ----------
+    n_choices: int
+      The number of choices possible.
+
+    p: np.array of shape (n_choices,)
+      A probability distribution over the possible choices.
+
+    ruinf: float
+      A random uniform draw.  Used as the "randomness" in this procedure.
+
+    Returns
+    -------
+    choice: int
+      The random choice.
+    """
+    cdef int i
+    cdef double acc = 0
+    for i in range(n_choices):
+        acc += p[i]
+        if acc >= runif:
+            return i
+    return n_choices - 1
+
+@cython.boundscheck(False)
+@cython.cdivision(True)
+cdef double[:] convert_to_probabilities(long n_bandits,
+                                        double[:] preferences,
+                                        double[:] p):
+    """Convert an array of preferences to probabilities.
+
+    Parameters
+    ----------
+    n_bandits: int
+      The number of preferences and probabilities.
+
+    preferences: np.array of shape (n_bandits,)
+      Preferences.
+    
+    p: np.array of shape (n_bandits,)
+      Array to hold the computed probabilities.  Note that the contents of this
+      array will be overwritten.
+
+    Returns
+    -------
+    p: np.array of shape (n_bandits,)
+      Computed probabilities.
+    """
+    cdef long i
+    cdef double s = 0.0
+    for i in range(n_bandits):
+        p[i] = exp(preferences[i])
+        s += p[i]
+    for i in range(n_bandits):
+        p[i] /= s
+    return p
